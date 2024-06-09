@@ -1,44 +1,88 @@
-# python 3.6
+#PYTHON 3.6
 
 import json
 import time
 import random
-from random import uniform
 from datetime import datetime
 import threading
+from typing import Any
 
 import paho.mqtt.client as mqtt
 
-seuil_max = 25.0
-seuil_min = 22.0
+# Define constants
+BROKER = "localhost"
+PORT = 1883
+TOPIC = "temperature/room"
+CLIENT_ID = f"python-mqtt-tls-pub-sub-{random.randint(0, 1000)}"
+SEUIL_MIN = 20
+SEUIL_MAX = 25
 
-CLIENT_ID = f'python-mqtt-tls-pub-sub-{random.randint(0, 1000)}'
 
-def on_connect(client, userdata, flags, rc):
+# Function to publish temperature data for a specific room
+
+# Callback functions
+def on_connect(client: Any, userdata: Any, flags: Any, rc):
     if rc == 0:
         print("Connected to MQTT Broker!")
     else:
-        print("Failed to connect, return code %d\n", rc)
+        print(f"Failed to connect, return code {rc}")
 
 
-def thread_pub(mqttc, numero_salle):
+def on_disconnect(client, userdata, rc):
+    if rc != 0:
+        print(f"Unexpected MQTT disconnection, return code {rc}")
+
+
+def on_message(client, userdata, msg):
+    print(f"Received message on topic {msg.topic}: {msg.payload.decode()}")
+
+
+# Function to publish temperature data for a specific room
+def publish_temperature(mqttc, room_number):
     while True:
-        data = {"date": datetime.now().isoformat(),
-                "temperature": uniform(seuil_min, seuil_max)}
-        mqttc.publish("temperature/room/" + str(numero_salle), json.dumps(data))
+        data = {
+            "date": datetime.now().isoformat(),
+            "temperature": random.uniform(SEUIL_MIN, SEUIL_MAX),
+        }
+        mqttc.publish(f"{TOPIC}/{room_number}", json.dumps(data))
+        print(f"Published temperature data for room {room_number}: {data}")
         time.sleep(1)
-        print(data)
 
+
+# Create MQTT client
 mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 mqttc.on_connect = on_connect
-mqttc.connect("localhost", 1883, 60)
+mqttc.on_disconnect = on_disconnect
+mqttc.on_message = on_message
 
-room1 = threading.Thread(target=thread_pub, args=(mqttc, 1))
-room2 = threading.Thread(target=thread_pub, args=(mqttc, 2))
-room3 = threading.Thread(target=thread_pub, args=(mqttc, 3))
-room4 = threading.Thread(target=thread_pub, args=(mqttc, 4))
+# Connect to MQTT broker
+mqttc.connect(BROKER, PORT, 60)
 
-room1.start()
-room2.start()
-room3.start()
-room4.start()
+# Create threads for publishing temperature data for each room
+rooms = [1, 2, 3, 4]
+threads = [threading.Thread(target=publish_temperature, args=(mqttc, room)) for room in rooms]
+
+# Start all threads
+for thread in threads:
+    thread.start()
+
+# Wait for all threads to finish (this will never happen in this code)
+for thread in threads:
+    thread.join()
+
+# Disconnect from MQTT broker
+mqttc.disconnect()
+
+# Copyright (c) 2023 Infinicode
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
