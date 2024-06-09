@@ -167,6 +167,7 @@ __pypackages__/
 [Ll]ocal
 [Ss]cripts
 .venv
+venv/
 pip-selfcheck.json
 
 # End of https://www.toptal.com/developers/gitignore/api/intellij+all,pythonvanilla,venv
